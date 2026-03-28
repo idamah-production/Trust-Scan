@@ -1,10 +1,879 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-  <title>Trust Scan</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TrustScan — Analyse de fiabilité web</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10;
+    --surface: #111520;
+    --card: #161b27;
+    --border: #1e2535;
+    --accent: #00e5ff;
+    --accent2: #7b61ff;
+    --green: #00ff87;
+    --yellow: #ffd600;
+    --red: #ff4560;
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --font-display: 'Syne', sans-serif;
+    --font-mono: 'Space Mono', monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-display);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* BG grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Glow blob */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 700px;
+    height: 400px;
+    background: radial-gradient(ellipse, rgba(0,229,255,0.08) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ─── NAV ─── */
+  nav {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 48px;
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(8px);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 800;
+    font-size: 1.2rem;
+    letter-spacing: -0.02em;
+    text-decoration: none;
+    color: var(--text);
+  }
+
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+
+  .logo span { color: var(--accent); }
+
+  nav .nav-links {
+    display: flex; gap: 32px; list-style: none;
+  }
+
+  nav .nav-links a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    transition: color 0.2s;
+  }
+
+  nav .nav-links a:hover { color: var(--accent); }
+
+  /* ─── HERO ─── */
+  .hero {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    padding: 80px 24px 60px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,229,255,0.08);
+    border: 1px solid rgba(0,229,255,0.2);
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 100px;
+    margin-bottom: 28px;
+  }
+
+  .badge::before { content: '●'; font-size: 8px; animation: blink 1.5s infinite; }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  h1 {
+    font-size: clamp(2.4rem, 6vw, 4.2rem);
+    font-weight: 800;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    max-width: 800px;
+    margin: 0 auto 20px;
+  }
+
+  h1 em {
+    font-style: normal;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 1.05rem;
+    max-width: 480px;
+    margin: 0 auto 48px;
+    line-height: 1.6;
+  }
+
+  /* ─── SEARCH BOX ─── */
+  .search-container {
+    position: relative;
+    z-index: 1;
+    max-width: 680px;
+    margin: 0 auto 16px;
+  }
+
+  .search-box {
+    display: flex;
+    gap: 0;
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+
+  .search-box:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,229,255,0.1), 0 0 30px rgba(0,229,255,0.05);
+  }
+
+  .url-prefix {
+    display: flex; align-items: center;
+    padding: 0 16px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    border-right: 1px solid var(--border);
+    white-space: nowrap;
+    background: var(--surface);
+  }
+
+  #urlInput {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 16px 20px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+  }
+
+  #urlInput::placeholder { color: var(--muted); }
+
+  .scan-btn {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #0a0c10;
+    border: none;
+    padding: 0 28px;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 0.9rem;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s;
+    white-space: nowrap;
+  }
+
+  .scan-btn:hover { opacity: 0.9; transform: scale(1.01); }
+  .scan-btn:active { transform: scale(0.98); }
+  .scan-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .search-hint {
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-family: var(--font-mono);
+    text-align: center;
+  }
+
+  /* ─── PROGRESS ─── */
+  #progressSection {
+    display: none;
+    position: relative;
+    z-index: 1;
+    max-width: 680px;
+    margin: 32px auto 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px 32px;
+  }
+
+  .progress-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+    color: var(--accent);
+  }
+
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(0,229,255,0.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .progress-steps { display: flex; flex-direction: column; gap: 10px; }
+
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.85rem;
+    color: var(--muted);
+    transition: color 0.3s;
+  }
+
+  .step.active { color: var(--text); }
+  .step.done { color: var(--green); }
+
+  .step-icon {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    flex-shrink: 0;
+    transition: all 0.3s;
+  }
+
+  .step.done .step-icon {
+    background: rgba(0,255,135,0.1);
+    border-color: var(--green);
+    color: var(--green);
+  }
+
+  .step.active .step-icon {
+    background: rgba(0,229,255,0.1);
+    border-color: var(--accent);
+    animation: pulse-ring 1.2s infinite;
+  }
+
+  @keyframes pulse-ring {
+    0%,100% { box-shadow: 0 0 0 0 rgba(0,229,255,0.3); }
+    50% { box-shadow: 0 0 0 4px rgba(0,229,255,0); }
+  }
+
+  /* ─── RESULTS ─── */
+  #results {
+    display: none;
+    position: relative;
+    z-index: 1;
+    max-width: 1000px;
+    margin: 48px auto 80px;
+    padding: 0 24px;
+  }
+
+  .result-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 40px;
+    flex-wrap: wrap;
+  }
+
+  .result-url-info h2 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  .result-url-info .scanned-url {
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    margin-top: 4px;
+  }
+
+  /* Score dial */
+  .score-dial-wrap {
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .score-dial {
+    position: relative;
+    width: 130px;
+    height: 130px;
+  }
+
+  .score-dial svg { transform: rotate(-90deg); }
+
+  .score-dial-value {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .score-number {
+    font-size: 2.2rem;
+    font-weight: 800;
+    font-family: var(--font-mono);
+    line-height: 1;
+  }
+
+  .score-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .score-verdict {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 8px;
+  }
+
+  /* Grid cards */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px 24px;
+    transition: border-color 0.2s, transform 0.2s;
+    animation: fadeUp 0.5s both;
+  }
+
+  .card:hover { border-color: rgba(0,229,255,0.25); transform: translateY(-2px); }
+
+  @keyframes fadeUp {
+    from { opacity:0; transform: translateY(16px); }
+    to { opacity:1; transform: translateY(0); }
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .card-title .icon { font-size: 14px; }
+
+  .chip {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 100px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .chip-green { background: rgba(0,255,135,0.12); color: var(--green); border: 1px solid rgba(0,255,135,0.25); }
+  .chip-yellow { background: rgba(255,214,0,0.12); color: var(--yellow); border: 1px solid rgba(255,214,0,0.25); }
+  .chip-red { background: rgba(255,69,96,0.12); color: var(--red); border: 1px solid rgba(255,69,96,0.25); }
+
+  .card-value {
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .card-desc {
+    font-size: 0.8rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* Progress bar */
+  .bar-wrap {
+    height: 6px;
+    background: var(--surface);
+    border-radius: 100px;
+    overflow: hidden;
+    margin-top: 12px;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 100px;
+    transition: width 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+    width: 0;
+  }
+
+  /* Signals */
+  .signals-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .signal {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .signal-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .sig-ok { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .sig-warn { background: var(--yellow); }
+  .sig-bad { background: var(--red); }
+
+  /* Full-width card */
+  .card-full { grid-column: 1 / -1; }
+
+  /* Scan again */
+  .rescan-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: 1.5px solid var(--border);
+    color: var(--muted);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 8px;
+  }
+
+  .rescan-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Section title */
+  .section-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Stats row */
+  .stats-row {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+  }
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .stat-item .stat-val {
+    font-size: 1.4rem;
+    font-weight: 800;
+    font-family: var(--font-mono);
+    color: var(--accent);
+  }
+
+  .stat-item .stat-lbl {
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+  }
+
+  /* Footer */
+  footer {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    padding: 40px 24px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.78rem;
+  }
+
+  footer strong { color: var(--accent); }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    nav { padding: 16px 20px; }
+    nav .nav-links { display: none; }
+    .result-header { flex-direction: column-reverse; align-items: center; }
+    .cards-grid { grid-template-columns: 1fr; }
+  }
+</style>
 </head>
 <body>
-  <h1>🔍 Trust Scan</h1>
-  <p>Analyse de liens pour détecter les arnaques</p>
+
+<nav>
+  <a class="logo" href="#">
+    <div class="logo-icon">🔍</div>
+    Trust<span>Scan</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#">Accueil</a></li>
+    <li><a href="#">Comment ça marche</a></li>
+    <li><a href="#">API</a></li>
+    <li><a href="#">À propos</a></li>
+  </ul>
+</nav>
+
+<section class="hero">
+  <div class="badge">● Analyse en temps réel</div>
+  <h1>Évaluez la <em>fiabilité</em><br>d'un site en un instant</h1>
+  <p class="subtitle">SSL, âge du domaine, vitesse, SEO, signaux de confiance — obtenez un score complet en quelques secondes.</p>
+</section>
+
+<div class="search-container">
+  <div class="search-box">
+    <div class="url-prefix">https://</div>
+    <input type="text" id="urlInput" placeholder="exemple.com" autocomplete="off" spellcheck="false" />
+    <button class="scan-btn" id="scanBtn" onclick="startScan()">Analyser →</button>
+  </div>
+  <p class="search-hint" style="margin-top:12px">Essayez : google.com · amazon.fr · github.com</p>
+</div>
+
+<!-- Progress -->
+<div id="progressSection">
+  <div class="progress-title">
+    <div class="spinner"></div>
+    Analyse en cours…
+  </div>
+  <div class="progress-steps">
+    <div class="step" id="step0"><div class="step-icon">?</div>Résolution DNS & connectivité</div>
+    <div class="step" id="step1"><div class="step-icon">?</div>Vérification du certificat SSL</div>
+    <div class="step" id="step2"><div class="step-icon">?</div>Analyse de l'âge du domaine</div>
+    <div class="step" id="step3"><div class="step-icon">?</div>Test de performance & vitesse</div>
+    <div class="step" id="step4"><div class="step-icon">?</div>Contrôle SEO & accessibilité mobile</div>
+    <div class="step" id="step5"><div class="step-icon">?</div>Calcul du score de confiance</div>
+  </div>
+</div>
+
+<!-- Results -->
+<div id="results"></div>
+
+<footer>
+  Propulsé par <strong>TrustScan</strong> — Données indicatives, non contractuelles.
+</footer>
+
+<script>
+// ── Fake data generator ──────────────────────────────────────────
+function generateFakeData(domain) {
+  const seed = domain.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+  const rng = (min, max) => min + (seed * 9301 + 49297) % 233280 / 233280 * (max - min) | 0;
+
+  const ssl = Math.random() > 0.15;
+  const domainAge = rng(1, 20);
+  const speed = rng(600, 3800);
+  const mobile = rng(55, 99);
+  const seo = rng(40, 98);
+  const trust = rng(30, 99);
+
+  const getStatus = (v, high=80, mid=60) => v >= high ? 'green' : v >= mid ? 'yellow' : 'red';
+
+  return {
+    domain,
+    ssl,
+    domainAge,
+    speed,
+    mobile,
+    seo,
+    trust,
+    signals: [
+      { label: 'Certificat SSL', ok: ssl },
+      { label: 'HTTPS forcé', ok: ssl && Math.random() > 0.2 },
+      { label: 'En-têtes sécurité', ok: Math.random() > 0.4 },
+      { label: 'DNS valide', ok: true },
+      { label: 'Pas de malware', ok: Math.random() > 0.1 },
+      { label: 'Balise robots.txt', ok: Math.random() > 0.3 },
+      { label: 'Sitemap.xml', ok: Math.random() > 0.4 },
+      { label: 'Favicon présent', ok: Math.random() > 0.2 },
+      { label: 'Open Graph', ok: Math.random() > 0.5 },
+      { label: 'Données structurées', ok: Math.random() > 0.6 },
+      { label: 'Texte alt images', ok: Math.random() > 0.4 },
+      { label: 'Policy de cookies', ok: Math.random() > 0.5 },
+    ],
+    speedStatus: getStatus(100 - (speed / 4000 * 100)),
+    mobileStatus: getStatus(mobile),
+    seoStatus: getStatus(seo),
+    trustStatus: trust >= 75 ? 'green' : trust >= 50 ? 'yellow' : 'red',
+    trustLabel: trust >= 75 ? 'Fiable' : trust >= 50 ? 'Moyen' : 'Risqué',
+  };
+}
+
+// ── Color helpers ────────────────────────────────────────────────
+const COLORS = { green: '#00ff87', yellow: '#ffd600', red: '#ff4560', cyan: '#00e5ff' };
+
+function chipClass(s) { return 'chip chip-' + s; }
+
+function statusChip(s, labels) {
+  const l = labels || { green: 'Bon', yellow: 'Moyen', red: 'Faible' };
+  return `<span class="${chipClass(s)}">${l[s]}</span>`;
+}
+
+// ── Scan logic ───────────────────────────────────────────────────
+function startScan() {
+  let raw = document.getElementById('urlInput').value.trim();
+  if (!raw) { document.getElementById('urlInput').focus(); return; }
+  raw = raw.replace(/^https?:\/\//i, '').replace(/\/$/, '');
+  if (!raw) return;
+
+  document.getElementById('scanBtn').disabled = true;
+  document.getElementById('results').style.display = 'none';
+
+  const prog = document.getElementById('progressSection');
+  prog.style.display = 'block';
+  prog.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  // Reset steps
+  for (let i = 0; i < 6; i++) {
+    const s = document.getElementById('step' + i);
+    s.className = 'step';
+    s.querySelector('.step-icon').textContent = '·';
+  }
+
+  const delays = [400, 900, 1500, 2100, 2700, 3200];
+  const doneTimes = [700, 1300, 1900, 2500, 3000, 3500];
+
+  delays.forEach((d, i) => {
+    setTimeout(() => {
+      const s = document.getElementById('step' + i);
+      s.className = 'step active';
+      s.querySelector('.step-icon').textContent = '…';
+    }, d);
+  });
+
+  doneTimes.forEach((d, i) => {
+    setTimeout(() => {
+      const s = document.getElementById('step' + i);
+      s.className = 'step done';
+      s.querySelector('.step-icon').textContent = '✓';
+    }, d);
+  });
+
+  setTimeout(() => {
+    prog.style.display = 'none';
+    showResults(generateFakeData(raw));
+    document.getElementById('scanBtn').disabled = false;
+  }, 3800);
+}
+
+document.getElementById('urlInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') startScan();
+});
+
+// ── Render results ───────────────────────────────────────────────
+function showResults(d) {
+  const trustColor = COLORS[d.trustStatus];
+  const r = document.getElementById('results');
+  r.style.display = 'block';
+
+  // Build SVG arc
+  const pct = d.trust / 100;
+  const circ = 2 * Math.PI * 54;
+  const dash = pct * circ;
+
+  r.innerHTML = `
+    <div class="result-header">
+      <div class="result-url-info">
+        <h2>${d.domain}</h2>
+        <div class="scanned-url">https://${d.domain} — analysé le ${new Date().toLocaleDateString('fr-FR')}</div>
+        <button class="rescan-btn" onclick="startScan()">↺ Relancer l'analyse</button>
+      </div>
+      <div class="score-dial-wrap">
+        <div class="score-dial">
+          <svg width="130" height="130" viewBox="0 0 130 130">
+            <circle cx="65" cy="65" r="54" fill="none" stroke="#1e2535" stroke-width="10"/>
+            <circle cx="65" cy="65" r="54" fill="none" stroke="${trustColor}" stroke-width="10"
+              stroke-dasharray="${dash.toFixed(1)} ${circ.toFixed(1)}"
+              stroke-linecap="round"
+              style="filter: drop-shadow(0 0 8px ${trustColor}66); transition: stroke-dasharray 1.4s cubic-bezier(0.22,1,0.36,1)"/>
+          </svg>
+          <div class="score-dial-value">
+            <div class="score-number" style="color:${trustColor}">${d.trust}</div>
+            <div class="score-label">/ 100</div>
+          </div>
+        </div>
+        <div class="score-verdict" style="color:${trustColor}">${d.trustLabel}</div>
+      </div>
+    </div>
+
+    <div class="section-title">Métriques clés</div>
+    <div class="cards-grid">
+
+      <!-- SSL -->
+      <div class="card" style="animation-delay:0.05s">
+        <div class="card-header">
+          <div class="card-title"><span class="icon">🔒</span>Certificat SSL</div>
+          ${d.ssl ? '<span class="chip chip-green">Valide</span>' : '<span class="chip chip-red">Absent</span>'}
+        </div>
+        <div class="card-value" style="color:${d.ssl ? COLORS.green : COLORS.red}">${d.ssl ? 'Actif' : 'Absent'}</div>
+        <div class="card-desc">Le chiffrement HTTPS ${d.ssl ? 'est en place — les données échangées sont sécurisées.' : 'est manquant — connexion non sécurisée.'}</div>
+      </div>
+
+      <!-- Âge -->
+      <div class="card" style="animation-delay:0.1s">
+        <div class="card-header">
+          <div class="card-title"><span class="icon">📅</span>Âge du domaine</div>
+          ${statusChip(d.domainAge >= 5 ? 'green' : d.domainAge >= 2 ? 'yellow' : 'red')}
+        </div>
+        <div class="card-value" style="color:${d.domainAge >= 5 ? COLORS.green : d.domainAge >= 2 ? COLORS.yellow : COLORS.red}">${d.domainAge} ans</div>
+        <div class="card-desc">${d.domainAge >= 5 ? 'Domaine établi de longue date — bon signe de légitimité.' : d.domainAge >= 2 ? 'Domaine relativement récent — à surveiller.' : 'Domaine très récent — prudence recommandée.'}</div>
+      </div>
+
+      <!-- Vitesse -->
+      <div class="card" style="animation-delay:0.15s">
+        <div class="card-header">
+          <div class="card-title"><span class="icon">⚡</span>Temps de chargement</div>
+          ${statusChip(d.speedStatus, { green: 'Rapide', yellow: 'Moyen', red: 'Lent' })}
+        </div>
+        <div class="card-value" style="color:${COLORS[d.speedStatus]}">${(d.speed / 1000).toFixed(2)} s</div>
+        <div class="card-desc">${d.speed < 1500 ? 'Excellent temps de réponse — expérience utilisateur optimale.' : d.speed < 2500 ? 'Temps de chargement acceptable pour la majorité des utilisateurs.' : 'Chargement lent — peut nuire à l\'expérience utilisateur et au SEO.'}</div>
+        <div class="bar-wrap"><div class="bar-fill" id="barSpeed" style="background:${COLORS[d.speedStatus]}"></div></div>
+      </div>
+
+      <!-- Mobile -->
+      <div class="card" style="animation-delay:0.2s">
+        <div class="card-header">
+          <div class="card-title"><span class="icon">📱</span>Score mobile</div>
+          ${statusChip(d.mobileStatus)}
+        </div>
+        <div class="card-value" style="color:${COLORS[d.mobileStatus]}">${d.mobile}<span style="font-size:1rem;color:var(--muted)">/100</span></div>
+        <div class="card-desc">Compatibilité et réactivité sur appareils mobiles.</div>
+        <div class="bar-wrap"><div class="bar-fill" id="barMobile" style="background:${COLORS[d.mobileStatus]}"></div></div>
+      </div>
+
+      <!-- SEO -->
+      <div class="card" style="animation-delay:0.25s">
+        <div class="card-header">
+          <div class="card-title"><span class="icon">🔎</span>Score SEO</div>
+          ${statusChip(d.seoStatus)}
+        </div>
+        <div class="card-value" style="color:${COLORS[d.seoStatus]}">${d.seo}<span style="font-size:1rem;color:var(--muted)">/100</span></div>
+        <div class="card-desc">Optimisation pour les moteurs de recherche.</div>
+        <div class="bar-wrap"><div class="bar-fill" id="barSeo" style="background:${COLORS[d.seoStatus]}"></div></div>
+      </div>
+
+      <!-- Signaux pleine largeur -->
+      <div class="card card-full" style="animation-delay:0.3s">
+        <div class="card-header">
+          <div class="card-title"><span class="icon">🛡️</span>Signaux de confiance</div>
+          <span style="font-size:0.78rem;color:var(--muted)">${d.signals.filter(s=>s.ok).length}/${d.signals.length} validés</span>
+        </div>
+        <div class="signals-grid">
+          ${d.signals.map(s => `
+            <div class="signal">
+              <div class="signal-dot ${s.ok ? 'sig-ok' : 'sig-bad'}"></div>
+              ${s.label}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+    </div>
+  `;
+
+  r.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Animate bars after render
+  setTimeout(() => {
+    const speedPct = Math.max(5, 100 - (d.speed / 4000 * 100));
+    document.getElementById('barSpeed').style.width = speedPct + '%';
+    document.getElementById('barMobile').style.width = d.mobile + '%';
+    document.getElementById('barSeo').style.width = d.seo + '%';
+  }, 100);
+}
+</script>
 </body>
 </html>
